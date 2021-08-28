@@ -1,0 +1,45 @@
+{
+  "comments": "Just brainstorming ways to possibly represent rules data in a parsing tool",
+  "classes": {
+    "Street": {
+      "streetLandingPage": {
+        "prompt": "placeholder",
+        "body": "plaintext or HTML goes here"
+      },
+      "streetBodywork": {
+        "prompt": "Is your car body mostly stock and does it meet the requirements below?",
+        "body": "Rule: See section 13.1 of the rules for clarification, but unless modifications are explicitly permitted, they are not allowed. Things that are allowed:...etc"
+      },
+      "tires200Treadwear": {
+        "prompt": "Are your tires 200 treadwear and DOT legal?",
+        "body": ""
+      }
+    },
+    "StreetTouring": {
+      "stLandingPage": {
+        "prompt": "placeholder",
+        "body": "placeholder"
+      },
+      "streetTouringBodywork": {
+        "prompt": "placeholder",
+        "body": "placeholder"
+      },
+      "stTires": {
+        "prompt": "placeholder",
+        "body": "placeholder"
+      }
+    },
+    "CAM": {
+    },
+    "XtremeStreet": {
+    },
+    "StreetPrepared": {
+    },
+    "StreetModified": {
+    },
+    "Prepared": {
+    },
+    "Modified": {
+    }
+  }
+}
