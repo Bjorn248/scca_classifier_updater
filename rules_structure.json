@@ -6,11 +6,11 @@
         "prompt": "placeholder",
         "body": "plaintext or HTML goes here"
       },
-      "streetBodywork": {
+      "Bodywork": {
         "prompt": "Is your car body mostly stock and does it meet the requirements below?",
         "body": "Rule: See section 13.1 of the rules for clarification, but unless modifications are explicitly permitted, they are not allowed. Things that are allowed:...etc"
       },
-      "tires200Treadwear": {
+      "Tires": {
         "prompt": "Are your tires 200 treadwear and DOT legal?",
         "body": ""
       }
