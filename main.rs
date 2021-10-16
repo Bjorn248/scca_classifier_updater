@@ -59,6 +59,11 @@ fn main() {
         classes: classes
     };
 
-    println!("hi :3");
     println!("{:?}", scca_rules);
+
+    populate_rules()
+}
+
+fn populate_rules() {
+    println!("ohai");
 }

@@ -13,3 +13,6 @@ Cargo.lock
 # Added by cargo
 
 /target
+
+# text version of rules
+scca_rules_6_24_2021.txt
