@@ -36,7 +36,13 @@ func readFile() string {
 		os.Exit(1)
 	}
 
-	return string(rules)
+	rulesString := string(rules)
+
+	// Unsure why but the pdftotext output contains these characters
+	// perhaps due to incorrect parsing?
+	rulesString = strings.ReplaceAll(rulesString, "ﬀ", "ff")
+
+	return rulesString
 }
 
 func main() {
