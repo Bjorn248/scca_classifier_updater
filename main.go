@@ -15,6 +15,7 @@ type Chapter struct {
 	name        string
 	number      string
 	subChapters []string
+	reader      *io.SectionReader
 	start       *regexp.Regexp
 	end         *regexp.Regexp
 }
@@ -54,7 +55,7 @@ func readFile() *strings.Reader {
 	return strings.NewReader(rulesString)
 }
 
-func getChapter(rules *strings.Reader, chapter Chapter) *io.SectionReader {
+func getChapterReader(rules *strings.Reader, chapter Chapter) *io.SectionReader {
 	rules.Seek(0, 0)
 	startMatch := chapter.start.FindReaderIndex(rules)
 	rules.Seek(0, 0)
@@ -125,15 +126,10 @@ func main() {
 	for i := range allChapters {
 		if allChapters[i].number != "n/a" {
 			subChapters := getSubChapters(string(rulesBytes), allChapters[i].number)
-			fmt.Println(subChapters)
+			allChapters[i].subChapters = subChapters
 		}
-		sectionReader := getChapter(rules, allChapters[i])
-		rulesBytes, err := io.ReadAll(sectionReader)
-		if err != nil {
-			log.Fatal(err)
-		}
-		fmt.Println(allChapters[i].name)
-		fmt.Println(string(rulesBytes))
-		fmt.Println()
+		chapterReader := getChapterReader(rules, allChapters[i])
+		allChapters[i].reader = chapterReader
 	}
+	fmt.Printf("%+v", allChapters)
 }
