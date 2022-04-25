@@ -10,7 +10,7 @@ import (
 )
 
 // Chapter defines the regex expressions to search for that denote the start and end of a
-// section of the rulebook.
+// chapter (e.g. Street, Street Touring) of the rulebook.
 type Chapter struct {
 	name        string
 	number      string
@@ -19,7 +19,7 @@ type Chapter struct {
 	end         *regexp.Regexp
 }
 
-// getSubChapterCount returns the number of sub chapters (e.g. 13.1, 13.2) that exist for a given
+// getSubChapters returns an array of sub chapters (e.g. 13.1, 13.2) that exist for a given
 // chapter
 func getSubChapters(rules, chapterNumber string) []string {
 	subChapters := []string{}
@@ -36,7 +36,7 @@ func getSubChapters(rules, chapterNumber string) []string {
 	return subChapters
 }
 
-// readFile returns the contents of a file as a string
+// readFile returns a Reader of a specific file
 func readFile() *strings.Reader {
 	filePath := "rules.txt"
 	rules, err := os.ReadFile(filePath)
@@ -54,11 +54,11 @@ func readFile() *strings.Reader {
 	return strings.NewReader(rulesString)
 }
 
-func getChapter(rules *strings.Reader, classSection Chapter) *io.SectionReader {
+func getChapter(rules *strings.Reader, chapter Chapter) *io.SectionReader {
 	rules.Seek(0, 0)
-	startMatch := classSection.start.FindReaderIndex(rules)
+	startMatch := chapter.start.FindReaderIndex(rules)
 	rules.Seek(0, 0)
-	endMatch := classSection.end.FindReaderIndex(rules)
+	endMatch := chapter.end.FindReaderIndex(rules)
 	rules.Seek(0, 0)
 	length := endMatch[0] - startMatch[0]
 	return io.NewSectionReader(rules, int64(startMatch[0]), int64(length))
