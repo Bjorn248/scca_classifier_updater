@@ -2,33 +2,42 @@ package main
 
 import (
 	"fmt"
+	"io"
+	"log"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 )
 
-func findAppendixPage(rules, class string) int {
-	pageNumber := 0
-	class = strings.ReplaceAll(class, "(", `\(`)
-	class = strings.ReplaceAll(class, ")", `\)`)
-	regexString := class + `.*\.+[. ]([0-9]+)`
+// Chapter defines the regex expressions to search for that denote the start and end of a
+// section of the rulebook.
+type Chapter struct {
+	name        string
+	number      string
+	subChapters []string
+	start       *regexp.Regexp
+	end         *regexp.Regexp
+}
+
+// getSubChapterCount returns the number of sub chapters (e.g. 13.1, 13.2) that exist for a given
+// chapter
+func getSubChapters(rules, chapterNumber string) []string {
+	subChapters := []string{}
+	regexString := chapterNumber + `\.([0-9]+[.A-Z]*).*\.+[. ]([0-9]+)`
 	tableOfContents := regexp.MustCompile(regexString)
-	match := tableOfContents.FindStringSubmatch(rules)
+	match := tableOfContents.FindAllStringSubmatch(rules, -1)
+	// This means there probably aren't any subchapters
 	if len(match) < 2 {
-		fmt.Println("Could not find page for " + class + " in table of contents")
-		os.Exit(1)
+		return []string{}
 	}
-	pageNumber, err := strconv.Atoi(match[1])
-	if err != nil {
-		fmt.Println(err)
-		os.Exit(1)
+	for i := range match {
+		subChapters = append(subChapters, fmt.Sprintf("%s.%s", chapterNumber, match[i][1]))
 	}
-	return pageNumber
+	return subChapters
 }
 
 // readFile returns the contents of a file as a string
-func readFile() string {
+func readFile() *strings.Reader {
 	filePath := "rules.txt"
 	rules, err := os.ReadFile(filePath)
 	if err != nil {
@@ -42,24 +51,89 @@ func readFile() string {
 	// perhaps due to incorrect parsing?
 	rulesString = strings.ReplaceAll(rulesString, "ﬀ", "ff")
 
-	return rulesString
+	return strings.NewReader(rulesString)
+}
+
+func getChapter(rules *strings.Reader, classSection Chapter) *io.SectionReader {
+	rules.Seek(0, 0)
+	startMatch := classSection.start.FindReaderIndex(rules)
+	rules.Seek(0, 0)
+	endMatch := classSection.end.FindReaderIndex(rules)
+	rules.Seek(0, 0)
+	length := endMatch[0] - startMatch[0]
+	return io.NewSectionReader(rules, int64(startMatch[0]), int64(length))
 }
 
 func main() {
 	rules := readFile()
-	allClasses := map[string]int{
-		"13. STREET CATEGORY":          0,
-		"14. STREET TOURING® CATEGORY": 0,
-		"15. STREET PREPARED CATEGORY": 0,
-		"16. STREET MODIFIED CATEGORY": 0,
-		"17. PREPARED CATEGORY":        0,
-		"18. MODIFIED CATEGORY":        0,
-		"20. SOLO® SPEC COUPE (SSC)":   0,
-		"EXTREME STREET (XS)":          0,
-	}
 
-	for class := range allClasses {
-		allClasses[class] = findAppendixPage(rules, class)
+	rulesBytes, err := io.ReadAll(rules)
+	if err != nil {
+		log.Fatal(err)
 	}
-	fmt.Println(allClasses)
+	rules.Seek(0, 0)
+	allChapters := []Chapter{
+		{
+			name:   "Street",
+			number: "13",
+			start:  regexp.MustCompile(`\n13\. STREET CATEGORY\n`),
+			end:    regexp.MustCompile(`\n14\. STREET TOURING® CATEGORY\n`),
+		},
+		{
+			name:   "Street Touring",
+			number: "14",
+			start:  regexp.MustCompile(`\n14\. STREET TOURING® CATEGORY\n`),
+			end:    regexp.MustCompile(`\n15\. STREET PREPARED CATEGORY\n`),
+		},
+		{
+			name:   "Street Prepared",
+			number: "15",
+			start:  regexp.MustCompile(`\n15\. STREET PREPARED CATEGORY\n`),
+			end:    regexp.MustCompile(`\n16\. STREET MODIFIED CATEGORY\n`),
+		},
+		{
+			name:   "Street Modified",
+			number: "16",
+			start:  regexp.MustCompile(`\n16\. STREET MODIFIED CATEGORY\n`),
+			end:    regexp.MustCompile(`\n17\. PREPARED CATEGORY\n`),
+		},
+		{
+			name:   "Prepared",
+			number: "17",
+			start:  regexp.MustCompile(`\n17\. PREPARED CATEGORY\n`),
+			end:    regexp.MustCompile(`\n18\. MODIFIED CATEGORY\n`),
+		},
+		{
+			name:   "Modified",
+			number: "18",
+			start:  regexp.MustCompile(`\n18\. MODIFIED CATEGORY\n`),
+			end:    regexp.MustCompile(`\n19\. KART CATEGORY\n`),
+		},
+		{
+			name:   "Solo Spec Coupe",
+			number: "20",
+			start:  regexp.MustCompile(`\n20\. SOLO® SPEC COUPE \(SSC\)\n`),
+			end:    regexp.MustCompile(`\n21\. PROSOLO® NATIONAL SERIES RULES\n`),
+		},
+		{
+			name:   "Extreme Street",
+			number: "n/a",
+			start:  regexp.MustCompile(`\nEXTREME STREET \(XS\)\n`),
+			end:    regexp.MustCompile(`\nAPPENDIX C - SOLO® ROLL BAR STANDARDS\n`),
+		},
+	}
+	for i := range allChapters {
+		if allChapters[i].number != "n/a" {
+			subChapters := getSubChapters(string(rulesBytes), allChapters[i].number)
+			fmt.Println(subChapters)
+		}
+		sectionReader := getChapter(rules, allChapters[i])
+		rulesBytes, err := io.ReadAll(sectionReader)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Println(allChapters[i].name)
+		fmt.Println(string(rulesBytes))
+		fmt.Println()
+	}
 }
