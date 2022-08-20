@@ -14,25 +14,37 @@ import (
 type Chapter struct {
 	name        string
 	number      string
-	subChapters []string
+	subChapters []SubChapter
 	reader      *io.SectionReader
 	start       *regexp.Regexp
 	end         *regexp.Regexp
 }
 
+// SubChapter holds the name, number, and body of a subchapter of the rules (e.g. 13.2 Bodywork)
+type SubChapter struct {
+	name   string
+	number string
+	reader *io.SectionReader
+}
+
 // getSubChapters returns an array of sub chapters (e.g. 13.1, 13.2) that exist for a given
 // chapter
-func getSubChapters(rules, chapterNumber string) []string {
-	subChapters := []string{}
-	regexString := chapterNumber + `\.([0-9]+[.A-Z]*).*\.+[. ]([0-9]+)`
+func getSubChapters(rules, chapterNumber string) []SubChapter {
+	subChapters := []SubChapter{}
+	regexString := chapterNumber + `\.([0-9]+[.A-Z]*) ([^\.\n]*)\.+[\. ]([0-9]+)`
 	tableOfContents := regexp.MustCompile(regexString)
 	match := tableOfContents.FindAllStringSubmatch(rules, -1)
 	// This means there probably aren't any subchapters
 	if len(match) < 2 {
-		return []string{}
+		return subChapters
 	}
 	for i := range match {
-		subChapters = append(subChapters, fmt.Sprintf("%s.%s", chapterNumber, match[i][1]))
+		subChapters = append(subChapters,
+			SubChapter{
+				number: fmt.Sprintf("%s.%s", chapterNumber, match[i][1]),
+				name:   match[i][2],
+			},
+		)
 	}
 	return subChapters
 }
@@ -52,7 +64,18 @@ func readFile() *strings.Reader {
 	// perhaps due to incorrect parsing?
 	rulesString = strings.ReplaceAll(rulesString, "ﬀ", "ff")
 
+	// standardize double quotes
+	rulesString = strings.ReplaceAll(rulesString, "“", `"`)
+	rulesString = strings.ReplaceAll(rulesString, "”", `"`)
+
 	return strings.NewReader(rulesString)
+}
+
+// findSubChapterBody populates the reader field of each subchapter with the body
+// of that subchapter
+func findSubChapterBody(chapter Chapter, chapterText []byte) []SubChapter {
+	subChapters := chapter.subChapters
+	return subChapters
 }
 
 func getChapterReader(rules *strings.Reader, chapter Chapter) *io.SectionReader {
@@ -72,6 +95,7 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	rules.Seek(0, 0)
 	allChapters := []Chapter{
 		{
@@ -123,6 +147,7 @@ func main() {
 			end:    regexp.MustCompile(`\nAPPENDIX C - SOLO® ROLL BAR STANDARDS\n`),
 		},
 	}
+
 	for i := range allChapters {
 		if allChapters[i].number != "n/a" {
 			subChapters := getSubChapters(string(rulesBytes), allChapters[i].number)
@@ -130,6 +155,26 @@ func main() {
 		}
 		chapterReader := getChapterReader(rules, allChapters[i])
 		allChapters[i].reader = chapterReader
+
+		chapterText, err := io.ReadAll(chapterReader)
+		if err != nil {
+			fmt.Println("error reading chapter text")
+			os.Exit(1)
+		}
+
+		// remove all form feed (i.e. ) chapter title lines
+		if allChapters[i].number != "n/a" {
+			remove := regexp.MustCompile(`\n\f` + allChapters[i].number + `\. .+\n`)
+			chapterText = remove.ReplaceAll(chapterText, []byte{})
+		}
+
+		// remove all page number text
+		remove := regexp.MustCompile(`([0-9]+ — )*202[0-2] SCCA® NATIONAL SOLO® RULES( )*(— [0-9]+)*`)
+		chapterText = remove.ReplaceAll(chapterText, []byte{})
+
+		if allChapters[i].number != "n/a" {
+			allChapters[i].subChapters = findSubChapterBody(allChapters[i], chapterText)
+		}
 	}
 	fmt.Printf("%+v", allChapters)
 }
