@@ -68,6 +68,9 @@ func readFile() *strings.Reader {
 	rulesString = strings.ReplaceAll(rulesString, "“", `"`)
 	rulesString = strings.ReplaceAll(rulesString, "”", `"`)
 
+	remove := regexp.MustCompile(`\n\f`)
+	rulesString = string(remove.ReplaceAll([]byte(rulesString), []byte{}))
+
 	return strings.NewReader(rulesString)
 }
 
@@ -75,6 +78,40 @@ func readFile() *strings.Reader {
 // of that subchapter
 func findSubChapterBody(chapter Chapter, chapterText []byte) []SubChapter {
 	subChapters := chapter.subChapters
+	reader := strings.NewReader(string(chapterText))
+	for i, subChapter := range subChapters {
+		reader.Seek(0, 0)
+		var length int
+		seekToEnd := false
+		if i == len(subChapters)-1 {
+			seekToEnd = true
+		}
+		startRegexString := `(?i)` + regexp.QuoteMeta(subChapter.number) + ` ` + regexp.QuoteMeta(subChapter.name)
+		startRegex := regexp.MustCompile(startRegexString)
+		startMatch := startRegex.FindReaderIndex(reader)
+		reader.Seek(0, 0)
+		if startMatch != nil {
+			if seekToEnd == true {
+				length = reader.Len() // jump to end of reader, this is the last element
+			} else {
+				endRegexString := `(?i)` + regexp.QuoteMeta(subChapters[i+1].number) + ` ` + regexp.QuoteMeta(subChapters[i+1].name)
+				endRegex := regexp.MustCompile(endRegexString)
+				endMatch := endRegex.FindReaderIndex(reader)
+				reader.Seek(0, 0)
+				if endMatch != nil {
+					length = endMatch[0] - startMatch[0]
+				}
+			}
+			sectionReader := io.NewSectionReader(reader, int64(startMatch[0]), int64(length))
+			subChapters[i].reader = sectionReader
+			subchapter, err := io.ReadAll(sectionReader)
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Println(subChapter.number + " " + subChapter.name)
+			fmt.Println(string(subchapter))
+		}
+	}
 	return subChapters
 }
 
@@ -169,10 +206,10 @@ func main() {
 		}
 
 		// remove all page number text
-		remove := regexp.MustCompile(`([0-9]+ — )*202[0-2] SCCA® NATIONAL SOLO® RULES( )*(— [0-9]+)*`)
+		remove := regexp.MustCompile(`(?i)([0-9]+ — )*202[0-2] SCCA® NATIONAL SOLO® RULES( )*(— [0-9]+)*`)
 		chapterText = remove.ReplaceAll(chapterText, []byte{})
 
-		if allChapters[i].number != "n/a" {
+		if allChapters[i].number != "n/a" && len(allChapters[i].subChapters) > 0 {
 			allChapters[i].subChapters = findSubChapterBody(allChapters[i], chapterText)
 		}
 	}
