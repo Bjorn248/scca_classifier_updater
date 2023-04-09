@@ -178,9 +178,15 @@ func main() {
 			end:    regexp.MustCompile(`\n21\. PROSOLO® NATIONAL SERIES RULES\n`),
 		},
 		{
-			name:   "Extreme Street",
+			name:   "Xtreme Street",
 			number: "n/a",
-			start:  regexp.MustCompile(`\nEXTREME STREET \(XS\)\n`),
+			start:  regexp.MustCompile(`\nClassic American Muscle \/ Xtreme Street Category\n`),
+			end:    regexp.MustCompile(`\nElectrical Vehicle Experimental \(EVX\)\n`),
+		},
+		{
+			name:   "EVX",
+			number: "n/a",
+			start:  regexp.MustCompile(`\nElectrical Vehicle Experimental \(EVX\)\n`),
 			end:    regexp.MustCompile(`\nAPPENDIX C - SOLO® ROLL BAR STANDARDS\n`),
 		},
 	}
@@ -190,6 +196,7 @@ func main() {
 			subChapters := getSubChapters(string(rulesBytes), allChapters[i].number)
 			allChapters[i].subChapters = subChapters
 		}
+		fmt.Printf("Currently processing: %s\n", allChapters[i].name)
 		chapterReader := getChapterReader(rules, allChapters[i])
 		allChapters[i].reader = chapterReader
 
@@ -206,7 +213,7 @@ func main() {
 		}
 
 		// remove all page number text
-		remove := regexp.MustCompile(`(?i)([0-9]+ — )*202[0-2] SCCA® NATIONAL SOLO® RULES( )*(— [0-9]+)*`)
+		remove := regexp.MustCompile(`(?i)([0-9]+ — )*\d{4} SCCA® NATIONAL SOLO® RULES( )*(— [0-9]+)*`)
 		chapterText = remove.ReplaceAll(chapterText, []byte{})
 
 		if allChapters[i].number != "n/a" && len(allChapters[i].subChapters) > 0 {
